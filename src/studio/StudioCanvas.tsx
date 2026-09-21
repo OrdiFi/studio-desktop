@@ -6,6 +6,7 @@ import {
 
 import StudioItemInfo from './StudioItemInfo'
 import StudioThumbnail from './StudioThumbnail'
+import StudioDraftRuntime from './runtime/StudioDraftRuntime'
 
 import {
   updateStudioState,
@@ -514,6 +515,24 @@ export default function StudioCanvas({
 
             if (!source) return null
 
+            const draft =
+              state.drafts[
+                item.id
+              ] ?? null
+
+            const runtimeSize =
+              Math.max(
+                1,
+                Math.min(
+                  CARD_W *
+                    card.scale,
+
+                  CARD_H *
+                    card.scale -
+                    42,
+                ),
+              )
+
             return (
               <article
                 key={card.id}
@@ -551,6 +570,9 @@ export default function StudioCanvas({
                   if (
                     target.closest(
                       '.canvas-card-menu',
+                    ) ||
+                    target.closest(
+                      '.studio-draft-runtime',
                     )
                   ) {
                     return
@@ -608,14 +630,25 @@ export default function StudioCanvas({
                 </div>
 
                 <div className="canvas-card-image">
-                  <StudioThumbnail
-                    thumbnail={
-                      (item.compositionThumbnail ?? item.rawThumbnail)
-                    }
-                    alt={titleForItem(
-                      item,
-                    )}
-                  />
+                  {draft ? (
+                    <StudioDraftRuntime
+                      state={state}
+                      root={item}
+                      draft={draft}
+                      size={runtimeSize}
+                      interactive
+                    />
+                  ) : (
+                    <StudioThumbnail
+                      thumbnail={
+                        item.compositionThumbnail ??
+                        item.rawThumbnail
+                      }
+                      alt={titleForItem(
+                        item,
+                      )}
+                    />
+                  )}
                 </div>
 
                 <div className="canvas-card-meta">
