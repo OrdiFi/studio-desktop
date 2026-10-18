@@ -2322,25 +2322,7 @@ export default function StudioCanvas({
             menuDraft.itemIds.length >
               0 ? (
               <>
-                <div
-                  style={{
-                    padding:
-                      '7px 10px 4px',
 
-                    fontSize: 10,
-                    fontWeight: 800,
-
-                    opacity: .55,
-
-                    textTransform:
-                      'uppercase',
-
-                    letterSpacing:
-                      '.5px',
-                  }}
-                >
-                  Unpack
-                </div>
 
                 {menuDraft.itemIds.map(
                   (childId) => {
@@ -2395,25 +2377,7 @@ export default function StudioCanvas({
             menuDraft.itemIds.length >
               0 ? (
               <>
-                <div
-                  style={{
-                    padding:
-                      '7px 10px 4px',
 
-                    fontSize: 10,
-                    fontWeight: 800,
-
-                    opacity: .55,
-
-                    textTransform:
-                      'uppercase',
-
-                    letterSpacing:
-                      '.5px',
-                  }}
-                >
-                  Unpack
-                </div>
 
                 <div
                   style={{

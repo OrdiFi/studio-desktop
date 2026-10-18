@@ -249,7 +249,9 @@ export default function StudioItemCard({
             height: '100%',
           }}
         >
-          {draft?.rootKind === 'layout' &&
+          {draft &&
+          (draft.rootKind === 'layout' ||
+            draft.rootKind === 'case') &&
           draft.itemIds.length > 0 ? (
             <StudioDraftRuntime
               state={state}
@@ -268,7 +270,9 @@ export default function StudioItemCard({
             />
           )}
 
-          {draftChild ? (
+          {draftChild &&
+          !(draft?.rootKind === 'case' &&
+            draft.itemIds.length > 0) ? (
             <>
               <div
                 style={{

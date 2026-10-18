@@ -283,23 +283,6 @@ function CaseFront({
       }}
     >
 
-      <div
-        style={{
-          position: 'absolute',
-          left: 6,
-          top: 6,
-          zIndex: 999,
-          padding: '4px 6px',
-          background: 'rgba(0,0,0,.82)',
-          color: '#00f5e6',
-          fontSize: 10,
-          fontWeight: 900,
-          pointerEvents: 'none',
-        }}
-      >
-        CASE RUNTIME · child={child ? 'YES' : 'NO'} · slot={slot ? 'YES' : 'NO'}
-      </div>
-
       <Surface
         surface={surface}
         size={size}
@@ -476,7 +459,7 @@ function CaseBack({
             boxSizing:
               'border-box',
 
-            overflow: 'hidden',
+            overflow: 'auto',
 
             background: '#000',
             color: '#d8d8d8',
@@ -505,8 +488,9 @@ function CaseBack({
 
               fontSize:
                 Math.max(
-                  5,
-                  size * .0085,
+                  10,
+                  size * .017 -
+                    (size < 700 ? 2 : 0),
                 ),
 
               lineHeight: 1.2,

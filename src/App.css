@@ -2715,3 +2715,17 @@ html[data-explorer-view='classic']
 
   z-index: 4100;
 }
+
+/* ==========================================================
+   EXPLORER FOOTER SPACE FIX
+   Keep Explorer items above the fixed OrdiFi logo.
+   ========================================================== */
+
+.studio-workspace:not(.is-explorer-hidden) .studio-explorer {
+  margin-bottom: 190px;
+  min-height: 0;
+}
+
+.explorer-wallet-list {
+  padding-bottom: 8px;
+}

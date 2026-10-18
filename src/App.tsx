@@ -29,12 +29,11 @@ import {
   newStudioProject,
   openStudioProject,
   saveStudioProject,
+  exportFullStudioSync,
   saveStudioProjectAs,
 } from './studio/studioProjectFile'
 
-import {
-  exportStudioWalletSync,
-} from './studio/studioWalletSyncFile'
+
 
 import { useStudioState } from './studio/useStudioState'
 import type {
@@ -520,10 +519,10 @@ function App() {
           }}
 
           onExportWallet={() => {
-            void exportStudioWalletSync()
+            void exportFullStudioSync()
               .catch((error) => {
                 console.error(
-                  'Export Wallet Sync failed.',
+                  'Export Studio Sync failed.',
                   error,
                 )
 

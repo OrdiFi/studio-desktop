@@ -375,3 +375,28 @@ export async function openStudioProject() {
 
   return result
 }
+
+export async function exportFullStudioSync() {
+  const target = await save({
+    title: 'Export OrdiFi Studio Sync',
+    defaultPath: 'ordifi-studio-sync.osync',
+    filters: [
+      {
+        name: 'OrdiFi Studio Sync',
+        extensions: ['osync'],
+      },
+    ],
+  })
+
+  if (!target) return null
+
+  const path = target.toLowerCase().endsWith('.osync')
+    ? target
+    : `${target}.osync`
+
+  const bytes = await buildProjectBytes()
+
+  await writeFile(path, bytes)
+
+  return path
+}

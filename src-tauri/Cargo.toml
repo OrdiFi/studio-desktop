@@ -1,6 +1,6 @@
 [package]
 name = "ordifi-studio"
-version = "0.1.0"
+version = "1.0.0"
 description = "OrdiFi Studio Desktop"
 authors = ["OrdiFi"]
 license = ""
@@ -25,3 +25,6 @@ tauri = { version = "2.11.6", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-fs = "2.5.2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

@@ -423,7 +423,7 @@ export default function StudioMenuBar({
                 onExportWallet?.()
               }}
             >
-              <span>Export Wallet Sync...</span>
+              <span>Export Studio Sync...</span>
             </button>
           </div>
 

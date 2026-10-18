@@ -30,3 +30,8 @@ src-tauri/target/
 .env
 .env.*
 !.env.example
+
+# Local development backups
+*.bak
+*.pre-release.bak
+*.pre-import.bak

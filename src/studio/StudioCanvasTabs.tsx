@@ -133,6 +133,21 @@ export default function StudioCanvasTabs({
       return
     }
 
+    const target = state.canvas.canvases.find(
+      (canvas) => canvas.id === canvasId,
+    )
+
+    if (!target) return
+
+    if (
+      target.cards.length > 0 &&
+      !window.confirm(
+        `Remove "${target.name}" and its canvas placements? Wallets, Ordinals and Drafts will remain.`,
+      )
+    ) {
+      return
+    }
+
     updateStudioState(
       (current) => {
         const index =
