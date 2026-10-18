@@ -205,8 +205,8 @@ function SuitcaseRuntime({
       style={{
         width: size,
         height: size,
-        margin: "0 auto",
         position: "relative",
+        margin: "0 auto",
         overflow: "visible",
         background: "transparent",
       }}
@@ -496,7 +496,13 @@ function SuitcaseRuntime({
   );
 }
 
-function AlbumRuntime({ spec, logicalComposition, size, renderChild }: RuntimeProps) {
+function AlbumRuntime({
+  spec,
+  logicalComposition,
+  size,
+  renderChild,
+  interactive = true,
+}: RuntimeProps) {
   const runtime = spec?.runtime ?? {};
   const assets = spec?.assets ?? {};
   const children = useMemo(
@@ -552,16 +558,40 @@ function AlbumRuntime({ spec, logicalComposition, size, renderChild }: RuntimePr
       style={{
         width: size,
         height: size,
-        margin: "0 auto",
         position: "relative",
+        margin: "0 auto",
         overflow: "visible",
         background: "transparent",
       }}
-      onWheel={(event) => {
-        event.preventDefault();
-        move(event.deltaY > 0 ? 1 : -1);
-      }}
+      onWheel={
+        interactive
+          ? (event) => {
+              event.preventDefault();
+              move(
+                event.deltaY > 0
+                  ? 1
+                  : -1,
+              );
+            }
+          : undefined
+      }
     >
+      <div
+        style={{
+          position: "absolute",
+          top: 4,
+          left: 4,
+          zIndex: 9999,
+          padding: "4px 6px",
+          background: "rgba(0,0,0,.75)",
+          color: "white",
+          fontSize: 12,
+          pointerEvents: "none",
+        }}
+      >
+        ALBUM RUNTIME · interactive={String(interactive)} · open={String(open)} · children={children.length}
+      </div>
+
       <div
         style={{
           position: "absolute",
@@ -652,15 +682,19 @@ function AlbumRuntime({ spec, logicalComposition, size, renderChild }: RuntimePr
           role="button"
           tabIndex={0}
           aria-label="Open or close album"
-          onClick={() => {
-            if (open) {
-              setOpen(false);
-              setActiveNumber(null);
-            } else {
-              setOpen(true);
-              setActiveNumber(firstNumber);
-            }
-          }}
+          onClick={
+            interactive
+              ? () => {
+                  if (open) {
+                    setOpen(false);
+                    setActiveNumber(null);
+                  } else {
+                    setOpen(true);
+                    setActiveNumber(firstNumber);
+                  }
+                }
+              : undefined
+          }
           style={{
             position: "absolute",
             inset: 0,
@@ -671,8 +705,14 @@ function AlbumRuntime({ spec, logicalComposition, size, renderChild }: RuntimePr
             transformStyle: "preserve-3d",
             transform: open ? `rotateY(${turnAngle}deg)` : "rotateY(0deg)",
             transition: "transform 620ms cubic-bezier(.22,.72,.18,1)",
-            cursor: "pointer",
-            pointerEvents: open ? "none" : "auto",
+            cursor:
+              interactive
+                ? "pointer"
+                : "default",
+            pointerEvents:
+              interactive && !open
+                ? "auto"
+                : "none",
             overflow: "visible",
           }}
         >

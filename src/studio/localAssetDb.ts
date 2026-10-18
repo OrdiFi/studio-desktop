@@ -239,3 +239,49 @@ export async function clearStudioAssets():
     db.close()
   }
 }
+
+export async function listStudioAssets():
+  Promise<StudioAssetRecord[]> {
+  const db = await openDb()
+
+  try {
+    return await new Promise(
+      (resolve, reject) => {
+        const tx =
+          db.transaction(
+            STORE_NAME,
+            'readonly',
+          )
+
+        const request =
+          tx.objectStore(
+            STORE_NAME,
+          ).getAll()
+
+        request.onsuccess =
+          () => {
+            resolve(
+              Array.isArray(
+                request.result,
+              )
+                ? request.result as
+                    StudioAssetRecord[]
+                : [],
+            )
+          }
+
+        request.onerror =
+          () => {
+            reject(
+              request.error ??
+                new Error(
+                  'Failed to list Studio assets.',
+                ),
+            )
+          }
+      },
+    )
+  } finally {
+    db.close()
+  }
+}

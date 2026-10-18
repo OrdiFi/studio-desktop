@@ -282,6 +282,24 @@ function CaseFront({
         overflow: 'hidden',
       }}
     >
+
+      <div
+        style={{
+          position: 'absolute',
+          left: 6,
+          top: 6,
+          zIndex: 999,
+          padding: '4px 6px',
+          background: 'rgba(0,0,0,.82)',
+          color: '#00f5e6',
+          fontSize: 10,
+          fontWeight: 900,
+          pointerEvents: 'none',
+        }}
+      >
+        CASE RUNTIME · child={child ? 'YES' : 'NO'} · slot={slot ? 'YES' : 'NO'}
+      </div>
+
       <Surface
         surface={surface}
         size={size}
@@ -322,6 +340,7 @@ function CaseFront({
         >
           <StudioThumbnail
             thumbnail={
+              child.compositionThumbnail ??
               child.rawThumbnail
             }
             alt={
@@ -333,44 +352,46 @@ function CaseFront({
         </div>
       ) : null}
 
-      <div
-        style={{
-          position: 'absolute',
-          left: '50%',
-          bottom: 0,
-          transform:
-            'translateX(-50%)',
+      {draft.itemIds.length > 0 ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 0,
+            transform:
+              'translateX(-50%)',
 
-          zIndex: 30,
+            zIndex: 30,
 
-          border:
-            '1px solid rgba(255,75,75,.82)',
+            border:
+              '1px solid rgba(255,75,75,.82)',
 
-          background:
-            'rgba(125,0,0,.78)',
+            background:
+              'rgba(125,0,0,.78)',
 
-          color:
-            'rgb(255,220,220)',
+            color:
+              'rgb(255,220,220)',
 
-          padding: '4px 7px',
+            padding: '4px 7px',
 
-          fontSize:
-            Math.max(
-              8,
-              size * 0.025,
-            ),
+            fontSize:
+              Math.max(
+                8,
+                size * 0.025,
+              ),
 
-          lineHeight: 1,
-          fontWeight: 950,
-          letterSpacing: .7,
-          textTransform:
-            'uppercase',
+            lineHeight: 1,
+            fontWeight: 950,
+            letterSpacing: .7,
+            textTransform:
+              'uppercase',
 
-          pointerEvents: 'none',
-        }}
-      >
-        Draft Mode
-      </div>
+            pointerEvents: 'none',
+          }}
+        >
+          Draft Mode
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -429,6 +450,7 @@ function CaseBack({
         overflow: 'hidden',
       }}
     >
+
       <Surface
         surface={surface}
         size={size}
@@ -508,6 +530,19 @@ export default function StudioCaseRuntime({
   draft,
   size,
 }: Props) {
+  console.log(
+    '[StudioCaseRuntime]',
+    {
+      rootId: root.id,
+      ordifiKind: root.ordifiKind,
+      spec: root.spec,
+      draftItemIds: draft.itemIds,
+      child:
+        draft.itemIds[0]
+          ? state.items[draft.itemIds[0]]
+          : null,
+    },
+  )
   const pairs =
     Array.isArray(
       root.surfacePairs,

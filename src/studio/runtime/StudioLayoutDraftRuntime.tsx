@@ -291,9 +291,13 @@ export default function StudioLayoutDraftRuntime({
            * Missing IDs leave real gaps.
            */
           const id =
-            draft.itemIds[
-              index
-            ]
+            draft.slotItemIds
+              ? draft.slotItemIds[
+                  index
+                ]
+              : draft.itemIds[
+                  index
+                ]
 
           if (!id) {
             return null

@@ -170,12 +170,7 @@ function logicalCompositionForDraft({
               item.id,
 
             storageBadge:
-              state.drafts[
-                item.id
-              ]
-                ? 'DRAFT MODE'
-                : undefined,
-
+              'DRAFT MODE',
             anchorIndex:
               group,
 
@@ -400,7 +395,13 @@ function StructuralDraftRuntime({
   return (
     <OrdiFiRuntime
       rootId={root.id}
-      spec={spec}
+      spec={{
+        ...spec,
+        runtime: {
+          ...(spec?.runtime ?? {}),
+          component: draft.rootKind,
+        },
+      }}
       logicalComposition={
         logicalComposition
       }

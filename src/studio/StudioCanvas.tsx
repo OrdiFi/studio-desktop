@@ -1,14 +1,30 @@
 import {
+  canPackOrdinalIntoDraftCase,
+  canPackOrdinalIntoDraftLayout,
+  packOrdinalIntoDraftCaseState,
+  packOrdinalIntoDraftLayoutState,
+  unpackDraftCaseState,
+  unpackDraftLayoutState,
+  unpackItemFromDraftLayoutState,
+  unpackDraftStructuralContainerState,
+  unpackItemFromDraftStructuralContainerState,
+} from './draftEditing'
+
+import {
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
 
 import StudioItemInfo from './StudioItemInfo'
+import StudioNoteDialog from './StudioNoteDialog'
 import StudioThumbnail from './StudioThumbnail'
 import StudioDraftRuntime from './runtime/StudioDraftRuntime'
 
 import {
+  moveItemToStudioFolder,
+  removeItemFromStudioFolders,
   updateStudioState,
 } from './StudioStore'
 
@@ -31,8 +47,188 @@ const CARD_H = 220
 const SURFACE_RESERVE_X = 800
 const SURFACE_RESERVE_Y = 600
 
+function draftCaseSlot(
+  sourceSpec: unknown,
+) {
+  const spec: any =
+    sourceSpec ?? {}
+
+  const slots =
+    spec?.slots ??
+    spec?.spec?.slots ??
+    spec?.layout?.slots ??
+    []
+
+  if (
+    !Array.isArray(slots) ||
+    slots.length === 0
+  ) {
+    return null
+  }
+
+  const slot =
+    slots[0]
+
+  const x = Number(slot?.x)
+  const y = Number(slot?.y)
+
+  const w = Number(
+    slot?.w ??
+    slot?.width,
+  )
+
+  const h = Number(
+    slot?.h ??
+    slot?.height,
+  )
+
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(w) ||
+    !Number.isFinite(h)
+  ) {
+    return null
+  }
+
+  return {
+    x,
+    y,
+    w,
+    h,
+
+    layoutW:
+      Number(
+        spec?.layout?.width ??
+        spec?.width,
+      ) || 1726,
+
+    layoutH:
+      Number(
+        spec?.layout?.height ??
+        spec?.height,
+      ) || 1726,
+  }
+}
+
+function StudioCaseDraftThumbnail({
+  state,
+  root,
+  itemIds,
+}: {
+  state: StudioStateV1
+  root: StudioItemSnapshot
+  itemIds: string[]
+}) {
+  const childId =
+    itemIds[0] ?? null
+
+  const child =
+    childId
+      ? state.items[childId] ?? null
+      : null
+
+  const slot =
+    draftCaseSlot(
+      root.spec,
+    )
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      <StudioThumbnail
+        thumbnail={
+          root.rawThumbnail ??
+          root.compositionThumbnail
+        }
+        alt={
+          root.serial ||
+          root.name ||
+          root.id
+        }
+      />
+
+      {child && slot ? (
+        <div
+          style={{
+            position: 'absolute',
+
+            left:
+              `${(slot.x / slot.layoutW) * 100}%`,
+
+            top:
+              `${(slot.y / slot.layoutH) * 100}%`,
+
+            width:
+              `${(slot.w / slot.layoutW) * 100}%`,
+
+            height:
+              `${(slot.h / slot.layoutH) * 100}%`,
+
+            overflow: 'hidden',
+            zIndex: 10,
+          }}
+        >
+          <StudioThumbnail
+            thumbnail={
+              child.compositionThumbnail ??
+              child.rawThumbnail
+            }
+            alt={
+              child.serial ||
+              child.name ||
+              child.label ||
+              child.id
+            }
+          />
+        </div>
+      ) : null}
+
+      {child ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 2,
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+            padding: '3px 6px',
+            border:
+              '1px solid rgba(255,75,75,.82)',
+            background:
+              'rgba(125,0,0,.78)',
+            color:
+              'rgb(255,220,220)',
+            fontSize: 8,
+            lineHeight: 1,
+            fontWeight: 950,
+            letterSpacing: .5,
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          Draft Mode
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 type Props = {
   state: StudioStateV1
+
+  onDropItem: (
+    itemId: string,
+    x: number,
+    y: number,
+  ) => void
 }
 
 type DragState = {
@@ -111,6 +307,10 @@ function titleForItem(
 export function addItemToActiveCanvas(
   state: StudioStateV1,
   item: StudioItemSnapshot,
+  position?: {
+    x: number
+    y: number
+  },
 ): StudioStateV1 {
   const canvasIndex =
     state.canvas.canvases.findIndex(
@@ -149,14 +349,20 @@ export function addItemToActiveCanvas(
         objectTypeForItem(item),
 
       x:
-        24 +
-        (canvas.cards.length % 5) *
-          28,
+        position?.x ??
+        (
+          24 +
+          (canvas.cards.length % 5) *
+            28
+        ),
 
       y:
-        24 +
-        (canvas.cards.length % 5) *
-          24,
+        position?.y ??
+        (
+          24 +
+          (canvas.cards.length % 5) *
+            24
+        ),
 
       z: nextZ,
       scale: 1,
@@ -186,6 +392,7 @@ export function addItemToActiveCanvas(
 
 export default function StudioCanvas({
   state,
+  onDropItem,
 }: Props) {
   const canvasRef =
     useRef<HTMLDivElement | null>(
@@ -198,8 +405,112 @@ export default function StudioCanvas({
   const [menu, setMenu] =
     useState<MenuState>(null)
 
+  const [
+    folderMenuOpen,
+    setFolderMenuOpen,
+  ] = useState(false)
+
+  useEffect(() => {
+    function handleTouchDrop(
+      event: Event,
+    ) {
+      const customEvent =
+        event as CustomEvent<{
+          itemId: string
+          clientX: number
+          clientY: number
+        }>
+
+      const {
+        itemId,
+        clientX,
+        clientY,
+      } = customEvent.detail ?? {}
+
+      if (
+        !itemId ||
+        !state.items[itemId]
+      ) {
+        return
+      }
+
+      const viewport =
+        canvasRef.current
+
+      const bounds =
+        viewport
+          ?.getBoundingClientRect()
+
+      if (
+        !viewport ||
+        !bounds
+      ) {
+        return
+      }
+
+      /*
+       * Ignore touch releases outside
+       * the visible Canvas viewport.
+       */
+      if (
+        clientX < bounds.left ||
+        clientX > bounds.right ||
+        clientY < bounds.top ||
+        clientY > bounds.bottom
+      ) {
+        return
+      }
+
+      const x =
+        Math.max(
+          8,
+          clientX -
+            bounds.left +
+            viewport.scrollLeft -
+            CARD_W / 2,
+        )
+
+      const y =
+        Math.max(
+          8,
+          clientY -
+            bounds.top +
+            viewport.scrollTop -
+            CARD_H / 2,
+        )
+
+      onDropItem(
+        itemId,
+        x,
+        y,
+      )
+    }
+
+    window.addEventListener(
+      'ordifi-studio-touch-drop',
+      handleTouchDrop,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'ordifi-studio-touch-drop',
+        handleTouchDrop,
+      )
+    }
+  }, [
+    onDropItem,
+    state.items,
+  ])
+
   const [info, setInfo] =
     useState<InfoState>(null)
+
+  const [
+    noteItemId,
+    setNoteItemId,
+  ] = useState<string | null>(
+    null,
+  )
 
   const activeCanvas =
     useMemo(
@@ -218,6 +529,58 @@ export default function StudioCanvas({
       ],
     )
 
+  /*
+   * Draft membership controls Canvas
+   * visibility globally.
+   *
+   * A child remains part of its Draft
+   * even when the parent container is
+   * not currently present on this Canvas.
+   *
+   * Only Unpack releases the child and
+   * makes an existing Canvas card visible
+   * as a standalone item again.
+   */
+  const hiddenDraftChildIds =
+    useMemo(() => {
+      const hidden =
+        new Set<string>()
+
+      for (
+        const draft
+        of Object.values(
+          state.drafts,
+        )
+      ) {
+        for (
+          const childId
+          of draft.itemIds
+        ) {
+          hidden.add(
+            childId,
+          )
+        }
+      }
+
+      return hidden
+    }, [
+      state.drafts,
+    ])
+  const visibleCanvasCards =
+    useMemo(
+      () =>
+        activeCanvas.cards.filter(
+          (card) =>
+            !hiddenDraftChildIds.has(
+              card.itemId,
+            ),
+        ),
+      [
+        activeCanvas.cards,
+        hiddenDraftChildIds,
+      ],
+    )
+
   const surfaceSize =
     useMemo(() => {
       let right = 0
@@ -225,7 +588,7 @@ export default function StudioCanvas({
 
       for (
         const card
-        of activeCanvas.cards
+        of visibleCanvasCards
       ) {
         right = Math.max(
           right,
@@ -251,7 +614,7 @@ export default function StudioCanvas({
           bottom +
           SURFACE_RESERVE_Y,
       }
-    }, [activeCanvas.cards])
+    }, [visibleCanvasCards])
 
   function sourceForItem(
     item: StudioItemSnapshot,
@@ -410,11 +773,1158 @@ export default function StudioCanvas({
     setMenu(null)
   }
 
+  function draftContainerCardAtPoint(
+    clientX: number,
+    clientY: number,
+    excludeCardId?: string,
+  ) {
+    const elements =
+      document.elementsFromPoint(
+        clientX,
+        clientY,
+      )
+
+    const seen =
+      new Set<string>()
+
+    for (const element of elements) {
+      const cardElement =
+        element.closest<HTMLElement>(
+          '.canvas-card[data-canvas-card-id]',
+        )
+
+      if (!cardElement) {
+        continue
+      }
+
+      const cardId =
+        cardElement.dataset
+          .canvasCardId
+
+      if (
+        !cardId ||
+        cardId === excludeCardId ||
+        seen.has(cardId)
+      ) {
+        continue
+      }
+
+      seen.add(cardId)
+
+      const card =
+        activeCanvas.cards.find(
+          (entry) =>
+            entry.id === cardId,
+        )
+
+      if (!card) {
+        continue
+      }
+
+      const draft =
+        state.drafts[
+          card.itemId
+        ]
+
+      if (
+        draft?.rootKind === 'case' ||
+        draft?.rootKind === 'layout'
+      ) {
+        return card
+      }
+    }
+
+    return null
+  }
+
+  function packCanvasCardIntoCase(
+    sourceCardId: string,
+    targetCardId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const canvas =
+          current.canvas.canvases.find(
+            (entry) =>
+              entry.id ===
+              current.canvas
+                .activeCanvasId,
+          )
+
+        if (!canvas) {
+          return current
+        }
+
+        const sourceCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              sourceCardId,
+          )
+
+        const targetCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              targetCardId,
+          )
+
+        if (
+          !sourceCard ||
+          !targetCard
+        ) {
+          return current
+        }
+
+        const packed =
+          packOrdinalIntoDraftCaseState(
+            current,
+            targetCard.itemId,
+            sourceCard.itemId,
+          )
+
+        if (packed === current) {
+          return current
+        }
+
+        const canvasIndex =
+          packed.canvas.canvases.findIndex(
+            (entry) =>
+              entry.id ===
+              packed.canvas.activeCanvasId,
+          )
+
+        if (canvasIndex < 0) {
+          return packed
+        }
+
+        const packedCanvas =
+          packed.canvas.canvases[
+            canvasIndex
+          ]
+
+        const canvases = [
+          ...packed.canvas.canvases,
+        ]
+
+        canvases[canvasIndex] = {
+          ...packedCanvas,
+          cards:
+            packedCanvas.cards.filter(
+              (entry) =>
+                entry.id !==
+                sourceCardId,
+            ),
+        }
+
+        return {
+          ...packed,
+
+          canvas: {
+            ...packed.canvas,
+            canvases,
+          },
+        }
+      },
+    )
+  }
+
+  function finishCardDrag(
+    event:
+      React.PointerEvent<HTMLDivElement>,
+  ) {
+    if (drag) {
+      const sourceCard =
+        activeCanvas.cards.find(
+          (entry) =>
+            entry.id ===
+            drag.cardId,
+        )
+
+      const targetCard =
+        draftContainerCardAtPoint(
+          event.clientX,
+          event.clientY,
+          drag.cardId,
+        )
+
+      if (
+        sourceCard &&
+        targetCard
+      ) {
+        const targetDraft =
+          state.drafts[
+            targetCard.itemId
+          ]
+
+        if (
+          targetDraft?.rootKind ===
+            'case' &&
+          canPackOrdinalIntoDraftCase(
+            state,
+            targetCard.itemId,
+            sourceCard.itemId,
+          )
+        ) {
+          packCanvasCardIntoCase(
+            sourceCard.id,
+            targetCard.id,
+          )
+        } else if (
+          targetDraft?.rootKind ===
+            'layout' &&
+          canPackOrdinalIntoDraftLayout(
+            state,
+            targetCard.itemId,
+            sourceCard.itemId,
+          )
+        ) {
+          updateStudioState(
+            (current) =>
+              packOrdinalIntoDraftLayoutState(
+                current,
+                targetCard.itemId,
+                sourceCard.itemId,
+              ),
+          )
+        }
+      }
+    }
+
+    setDrag(null)
+  }
+
+  function unpackDraftCaseOnCanvas(
+    caseCardId: string,
+    caseItemId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const draft =
+          current.drafts[
+            caseItemId
+          ]
+
+        if (
+          !draft ||
+          draft.rootKind !==
+            'case' ||
+          draft.itemIds.length === 0
+        ) {
+          return current
+        }
+
+        const childId =
+          draft.itemIds[0]
+
+        const child =
+          current.items[childId]
+
+        /*
+         * First mutate only Draft
+         * semantics.
+         */
+        let next =
+          unpackDraftCaseState(
+            current,
+            caseItemId,
+          )
+
+        if (!child) {
+          return next
+        }
+
+        const canvasIndex =
+          next.canvas.canvases
+            .findIndex(
+              (canvas) =>
+                canvas.id ===
+                next.canvas
+                  .activeCanvasId,
+            )
+
+        if (canvasIndex < 0) {
+          return next
+        }
+
+        const canvas =
+          next.canvas.canvases[
+            canvasIndex
+          ]
+
+        const caseCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              caseCardId,
+          )
+
+        if (!caseCard) {
+          return next
+        }
+
+        const x =
+          Math.max(
+            8,
+            caseCard.x +
+              CARD_W *
+                caseCard.scale +
+              24,
+          )
+
+        const y =
+          Math.max(
+            8,
+            caseCard.y,
+          )
+
+        const nextZ =
+          canvas.topZ + 1
+
+        const existing =
+          canvas.cards.find(
+            (entry) =>
+              entry.itemId ===
+              childId,
+          )
+
+        const cards =
+          existing
+            ? canvas.cards.map(
+                (entry) =>
+                  entry.itemId ===
+                  childId
+                    ? {
+                        ...entry,
+                        x,
+                        y,
+                        z: nextZ,
+                      }
+                    : entry,
+              )
+            : [
+                ...canvas.cards,
+
+                {
+                  id:
+                    `card-${child.id}`,
+
+                  itemId:
+                    child.id,
+
+                  objectType:
+                    objectTypeForItem(
+                      child,
+                    ),
+
+                  x,
+                  y,
+                  z: nextZ,
+                  scale: 1 as const,
+                },
+              ]
+
+        const canvases =
+          [
+            ...next.canvas
+              .canvases,
+          ]
+
+        canvases[
+          canvasIndex
+        ] = {
+          ...canvas,
+          topZ: nextZ,
+          cards,
+        }
+
+        next = {
+          ...next,
+
+          canvas: {
+            ...next.canvas,
+            canvases,
+          },
+        }
+
+        return next
+      },
+    )
+
+    setMenu(null)
+  }
+
+  function unpackDraftLayoutItemOnCanvas(
+    layoutCardId: string,
+    layoutItemId: string,
+    childId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const child =
+          current.items[childId]
+
+        if (!child) {
+          return current
+        }
+
+        let next =
+          unpackItemFromDraftLayoutState(
+            current,
+            layoutItemId,
+            childId,
+          )
+
+        if (next === current) {
+          return current
+        }
+
+        const canvasIndex =
+          next.canvas.canvases
+            .findIndex(
+              (canvas) =>
+                canvas.id ===
+                next.canvas
+                  .activeCanvasId,
+            )
+
+        if (canvasIndex < 0) {
+          return next
+        }
+
+        const canvas =
+          next.canvas.canvases[
+            canvasIndex
+          ]
+
+        const layoutCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              layoutCardId,
+          )
+
+        if (!layoutCard) {
+          return next
+        }
+
+        const x =
+          Math.max(
+            8,
+            layoutCard.x +
+              CARD_W *
+                layoutCard.scale +
+              24,
+          )
+
+        const y =
+          Math.max(
+            8,
+            layoutCard.y,
+          )
+
+        const nextZ =
+          canvas.topZ + 1
+
+        const existing =
+          canvas.cards.find(
+            (entry) =>
+              entry.itemId ===
+              childId,
+          )
+
+        const cards =
+          existing
+            ? canvas.cards.map(
+                (entry) =>
+                  entry.itemId ===
+                  childId
+                    ? {
+                        ...entry,
+                        x,
+                        y,
+                        z: nextZ,
+                      }
+                    : entry,
+              )
+            : [
+                ...canvas.cards,
+
+                {
+                  id:
+                    `card-${child.id}`,
+
+                  itemId:
+                    child.id,
+
+                  objectType:
+                    objectTypeForItem(
+                      child,
+                    ),
+
+                  x,
+                  y,
+                  z: nextZ,
+                  scale: 1 as const,
+                },
+              ]
+
+        const canvases =
+          [
+            ...next.canvas.canvases,
+          ]
+
+        canvases[
+          canvasIndex
+        ] = {
+          ...canvas,
+          topZ: nextZ,
+          cards,
+        }
+
+        next = {
+          ...next,
+
+          canvas: {
+            ...next.canvas,
+            canvases,
+          },
+        }
+
+        return next
+      },
+    )
+
+    setMenu(null)
+  }
+
+  function unpackAllDraftLayoutOnCanvas(
+    layoutCardId: string,
+    layoutItemId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const draft =
+          current.drafts[
+            layoutItemId
+          ]
+
+        if (
+          !draft ||
+          draft.rootKind !==
+            'layout' ||
+          draft.itemIds.length === 0
+        ) {
+          return current
+        }
+
+        const childIds =
+          [...draft.itemIds]
+
+        let next =
+          unpackDraftLayoutState(
+            current,
+            layoutItemId,
+          )
+
+        const canvasIndex =
+          next.canvas.canvases
+            .findIndex(
+              (canvas) =>
+                canvas.id ===
+                next.canvas
+                  .activeCanvasId,
+            )
+
+        if (canvasIndex < 0) {
+          return next
+        }
+
+        const canvas =
+          next.canvas.canvases[
+            canvasIndex
+          ]
+
+        const layoutCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              layoutCardId,
+          )
+
+        if (!layoutCard) {
+          return next
+        }
+
+        let topZ =
+          canvas.topZ
+
+        let cards =
+          [...canvas.cards]
+
+        childIds.forEach(
+          (childId, index) => {
+            const child =
+              next.items[childId]
+
+            if (!child) {
+              return
+            }
+
+            topZ += 1
+
+            const column =
+              index % 3
+
+            const row =
+              Math.floor(
+                index / 3,
+              )
+
+            const x =
+              Math.max(
+                8,
+                layoutCard.x +
+                  CARD_W *
+                    layoutCard.scale +
+                  24 +
+                  column *
+                    (CARD_W + 16),
+              )
+
+            const y =
+              Math.max(
+                8,
+                layoutCard.y +
+                  row *
+                    (CARD_H + 16),
+              )
+
+            const existingIndex =
+              cards.findIndex(
+                (entry) =>
+                  entry.itemId ===
+                  childId,
+              )
+
+            if (
+              existingIndex >= 0
+            ) {
+              cards[
+                existingIndex
+              ] = {
+                ...cards[
+                  existingIndex
+                ],
+                x,
+                y,
+                z: topZ,
+              }
+            } else {
+              cards.push({
+                id:
+                  `card-${child.id}`,
+
+                itemId:
+                  child.id,
+
+                objectType:
+                  objectTypeForItem(
+                    child,
+                  ),
+
+                x,
+                y,
+                z: topZ,
+                scale: 1 as const,
+              })
+            }
+          },
+        )
+
+        const canvases =
+          [
+            ...next.canvas.canvases,
+          ]
+
+        canvases[
+          canvasIndex
+        ] = {
+          ...canvas,
+          topZ,
+          cards,
+        }
+
+        next = {
+          ...next,
+
+          canvas: {
+            ...next.canvas,
+            canvases,
+          },
+        }
+
+        return next
+      },
+    )
+
+    setMenu(null)
+  }
+
+  function unpackDraftSuitcaseItemOnCanvas(
+    suitcaseCardId: string,
+    suitcaseItemId: string,
+    childId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const draft =
+          current.drafts[
+            suitcaseItemId
+          ]
+
+        const child =
+          current.items[
+            childId
+          ]
+
+        if (
+          !draft ||
+          draft.rootKind !==
+            'suitcase' ||
+          !draft.itemIds.includes(
+            childId,
+          ) ||
+          !child
+        ) {
+          return current
+        }
+
+        let next =
+          unpackItemFromDraftStructuralContainerState(
+            current,
+            suitcaseItemId,
+            childId,
+          )
+
+        if (next === current) {
+          return current
+        }
+
+        const canvasIndex =
+          next.canvas.canvases
+            .findIndex(
+              (canvas) =>
+                canvas.id ===
+                next.canvas
+                  .activeCanvasId,
+            )
+
+        if (canvasIndex < 0) {
+          return next
+        }
+
+        const canvas =
+          next.canvas.canvases[
+            canvasIndex
+          ]
+
+        const suitcaseCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              suitcaseCardId,
+          )
+
+        if (!suitcaseCard) {
+          return next
+        }
+
+        const x =
+          Math.max(
+            8,
+            suitcaseCard.x +
+              CARD_W *
+                suitcaseCard.scale +
+              24,
+          )
+
+        let y =
+          Math.max(
+            8,
+            suitcaseCard.y,
+          )
+
+        /*
+         * Find the next free vertical
+         * position so repeated single
+         * unpack operations do not stack
+         * Cases on top of each other.
+         */
+        for (
+          let attempt = 0;
+          attempt < 100;
+          attempt += 1
+        ) {
+          const occupied =
+            canvas.cards.some(
+              (entry) =>
+                entry.id !==
+                  suitcaseCardId &&
+                Math.abs(
+                  entry.x - x,
+                ) < CARD_W &&
+                Math.abs(
+                  entry.y - y,
+                ) < CARD_H,
+            )
+
+          if (!occupied) {
+            break
+          }
+
+          y +=
+            CARD_H + 16
+        }
+
+        const nextZ =
+          canvas.topZ + 1
+
+        const existingIndex =
+          canvas.cards.findIndex(
+            (entry) =>
+              entry.itemId ===
+              childId,
+          )
+
+        const cards =
+          [...canvas.cards]
+
+        if (existingIndex >= 0) {
+          cards[
+            existingIndex
+          ] = {
+            ...cards[
+              existingIndex
+            ],
+            x,
+            y,
+            z: nextZ,
+          }
+        } else {
+          cards.push({
+            id:
+              `card-${child.id}`,
+
+            itemId:
+              child.id,
+
+            objectType:
+              objectTypeForItem(
+                child,
+              ),
+
+            x,
+            y,
+            z: nextZ,
+            scale: 1 as const,
+          })
+        }
+
+        const canvases =
+          [
+            ...next.canvas
+              .canvases,
+          ]
+
+        canvases[
+          canvasIndex
+        ] = {
+          ...canvas,
+          topZ: nextZ,
+          cards,
+        }
+
+        next = {
+          ...next,
+
+          canvas: {
+            ...next.canvas,
+            canvases,
+          },
+        }
+
+        return next
+      },
+    )
+
+    /*
+     * Intentionally keep the context
+     * menu open. This makes unpacking
+     * several Cases from a large
+     * Suitcase practical.
+     */
+  }
+
+  function unpackAllDraftSuitcaseOnCanvas(
+    suitcaseCardId: string,
+    suitcaseItemId: string,
+  ) {
+    updateStudioState(
+      (current) => {
+        const draft =
+          current.drafts[
+            suitcaseItemId
+          ]
+
+        if (
+          !draft ||
+          draft.rootKind !==
+            'suitcase' ||
+          draft.itemIds.length === 0
+        ) {
+          return current
+        }
+
+        const childIds =
+          [...draft.itemIds]
+
+        let next =
+          unpackDraftStructuralContainerState(
+            current,
+            suitcaseItemId,
+          )
+
+        const canvasIndex =
+          next.canvas.canvases
+            .findIndex(
+              (canvas) =>
+                canvas.id ===
+                next.canvas
+                  .activeCanvasId,
+            )
+
+        if (canvasIndex < 0) {
+          return next
+        }
+
+        const canvas =
+          next.canvas.canvases[
+            canvasIndex
+          ]
+
+        const suitcaseCard =
+          canvas.cards.find(
+            (entry) =>
+              entry.id ===
+              suitcaseCardId,
+          )
+
+        if (!suitcaseCard) {
+          return next
+        }
+
+        let topZ =
+          canvas.topZ
+
+        let cards =
+          [...canvas.cards]
+
+        childIds.forEach(
+          (childId, index) => {
+            const child =
+              next.items[
+                childId
+              ]
+
+            if (!child) {
+              return
+            }
+
+            topZ += 1
+
+            const column =
+              index % 4
+
+            const row =
+              Math.floor(
+                index / 4,
+              )
+
+            const x =
+              Math.max(
+                8,
+                suitcaseCard.x +
+                  CARD_W *
+                    suitcaseCard.scale +
+                  24 +
+                  column *
+                    (CARD_W + 16),
+              )
+
+            const y =
+              Math.max(
+                8,
+                suitcaseCard.y +
+                  row *
+                    (CARD_H + 16),
+              )
+
+            const existingIndex =
+              cards.findIndex(
+                (entry) =>
+                  entry.itemId ===
+                  childId,
+              )
+
+            if (
+              existingIndex >= 0
+            ) {
+              cards[
+                existingIndex
+              ] = {
+                ...cards[
+                  existingIndex
+                ],
+                x,
+                y,
+                z: topZ,
+              }
+            } else {
+              cards.push({
+                id:
+                  `card-${child.id}`,
+
+                itemId:
+                  child.id,
+
+                objectType:
+                  objectTypeForItem(
+                    child,
+                  ),
+
+                x,
+                y,
+                z: topZ,
+                scale: 1 as const,
+              })
+            }
+          },
+        )
+
+        const canvases =
+          [
+            ...next.canvas
+              .canvases,
+          ]
+
+        canvases[
+          canvasIndex
+        ] = {
+          ...canvas,
+          topZ,
+          cards,
+        }
+
+        next = {
+          ...next,
+
+          canvas: {
+            ...next.canvas,
+            canvases,
+          },
+        }
+
+        return next
+      },
+    )
+
+    setMenu(null)
+  }
+
   return (
     <>
       <div
         ref={canvasRef}
         className="studio-canvas"
+        onDragOver={(event) => {
+          /*
+           * preventDefault() is what makes this
+           * element a valid HTML drop target.
+           *
+           * Do not filter by custom MIME type here:
+           * WebView2 may omit custom types during
+           * dragover even though they are available
+           * when the drop actually happens.
+           */
+          event.preventDefault()
+
+          event.dataTransfer.dropEffect =
+            'copy'
+        }}
+        onDrop={(event) => {
+          const itemId =
+            event.dataTransfer.getData(
+              'application/x-ordifi-studio-item',
+            ) ||
+            event.dataTransfer.getData(
+              'text/plain',
+            )
+
+          if (
+            !itemId ||
+            !state.items[itemId]
+          ) {
+            return
+          }
+
+          event.preventDefault()
+
+          const viewport =
+            canvasRef.current
+
+          const bounds =
+            viewport
+              ?.getBoundingClientRect()
+
+          if (
+            !viewport ||
+            !bounds
+          ) {
+            return
+          }
+
+          /*
+           * Drop coordinates use the same
+           * scrollable-surface coordinate system
+           * as normal Canvas card dragging.
+           *
+           * Center the new card on the cursor.
+           */
+          const x =
+            Math.max(
+              8,
+              event.clientX -
+                bounds.left +
+                viewport.scrollLeft -
+                CARD_W / 2,
+            )
+
+          const y =
+            Math.max(
+              8,
+              event.clientY -
+                bounds.top +
+                viewport.scrollTop -
+                CARD_H / 2,
+            )
+
+          onDropItem(
+            itemId,
+            x,
+            y,
+          )
+        }}
         onPointerMove={(event) => {
           if (!drag) return
 
@@ -463,8 +1973,8 @@ export default function StudioCanvas({
             }),
           )
         }}
-        onPointerUp={() =>
-          setDrag(null)
+        onPointerUp={(event) =>
+          finishCardDrag(event)
         }
         onPointerCancel={() =>
           setDrag(null)
@@ -483,7 +1993,7 @@ export default function StudioCanvas({
               `max(100%, ${surfaceSize.height}px)`,
           }}
         >
-        {activeCanvas.cards.length ===
+        {visibleCanvasCards.length ===
         0 ? (
           <div className="canvas-empty">
             <div className="canvas-empty-mark">
@@ -501,7 +2011,7 @@ export default function StudioCanvas({
           </div>
         ) : null}
 
-        {activeCanvas.cards.map(
+        {visibleCanvasCards.map(
           (card) => {
             const item =
               state.items[
@@ -537,6 +2047,9 @@ export default function StudioCanvas({
               <article
                 key={card.id}
                 className="canvas-card"
+                data-canvas-card-id={
+                  card.id
+                }
                 style={{
                   left: card.x,
                   top: card.y,
@@ -610,6 +2123,8 @@ export default function StudioCanvas({
                 ) => {
                   event.preventDefault()
 
+                  setFolderMenuOpen(false)
+
                   setMenu({
                     cardId:
                       card.id,
@@ -630,13 +2145,27 @@ export default function StudioCanvas({
                 </div>
 
                 <div className="canvas-card-image">
-                  {draft ? (
+                  {draft &&
+                  (
+                    card.scale !== 1 ||
+                    draft.rootKind === 'layout' ||
+                    draft.rootKind === 'suitcase' ||
+                    draft.rootKind === 'album'
+                  ) ? (
                     <StudioDraftRuntime
                       state={state}
                       root={item}
                       draft={draft}
                       size={runtimeSize}
-                      interactive
+                      interactive={
+                        card.scale !== 1
+                      }
+                    />
+                  ) : draft?.rootKind === 'case' ? (
+                    <StudioCaseDraftThumbnail
+                      state={state}
+                      root={item}
+                      itemIds={draft.itemIds}
                     />
                   ) : (
                     <StudioThumbnail
@@ -699,7 +2228,30 @@ export default function StudioCanvas({
           return null
         }
 
+        const menuDraft =
+          state.drafts[
+            item.id
+          ] ?? null
+
+        const menuFolders =
+          state.explorer.folders.filter(
+            (folder) =>
+              folder.sourceId ===
+              item.sourceId,
+          )
+
+        const currentFolderId =
+          Object.entries(
+            state.explorer.folderItems,
+          ).find(
+            ([, itemIds]) =>
+              itemIds.includes(
+                item.id,
+              ),
+          )?.[0] ?? null
+
         return (
+          <>
           <div
             className="canvas-card-menu"
             style={{
@@ -721,6 +2273,20 @@ export default function StudioCanvas({
               Info
             </button>
 
+            <button
+              type="button"
+              onClick={() => {
+                setNoteItemId(
+                  item.id,
+                )
+
+                setMenu(null)
+              }}
+            >
+              Notes
+            </button>
+
+
             <div />
 
             <button
@@ -732,10 +2298,10 @@ export default function StudioCanvas({
               }
             >
               {card.scale === 1
-                ? 'Resize 2×'
+                ? 'Resize 2x'
                 : card.scale === 2
-                  ? 'Resize 4×'
-                  : 'Resize 1×'}
+                  ? 'Resize 4x'
+                  : 'Resize 1x'}
             </button>
 
             <button
@@ -751,6 +2317,180 @@ export default function StudioCanvas({
               Bring to Front
             </button>
 
+            {menuDraft?.rootKind ===
+              'layout' &&
+            menuDraft.itemIds.length >
+              0 ? (
+              <>
+                <div
+                  style={{
+                    padding:
+                      '7px 10px 4px',
+
+                    fontSize: 10,
+                    fontWeight: 800,
+
+                    opacity: .55,
+
+                    textTransform:
+                      'uppercase',
+
+                    letterSpacing:
+                      '.5px',
+                  }}
+                >
+                  Unpack
+                </div>
+
+                {menuDraft.itemIds.map(
+                  (childId) => {
+                    const child =
+                      state.items[
+                        childId
+                      ]
+
+                    if (!child) {
+                      return null
+                    }
+
+                    return (
+                      <button
+                        key={childId}
+                        type="button"
+                        onClick={() =>
+                          unpackDraftLayoutItemOnCanvas(
+                            card.id,
+                            item.id,
+                            childId,
+                          )
+                        }
+                        title={
+                          child.id
+                        }
+                      >
+                        {child.serial ||
+                          child.name ||
+                          child.label ||
+                          child.id}
+                      </button>
+                    )
+                  },
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    unpackAllDraftLayoutOnCanvas(
+                      card.id,
+                      item.id,
+                    )
+                  }
+                >
+                  Unpack All
+                </button>
+              </>
+            ) : null}
+            {menuDraft?.rootKind ===
+              'suitcase' &&
+            menuDraft.itemIds.length >
+              0 ? (
+              <>
+                <div
+                  style={{
+                    padding:
+                      '7px 10px 4px',
+
+                    fontSize: 10,
+                    fontWeight: 800,
+
+                    opacity: .55,
+
+                    textTransform:
+                      'uppercase',
+
+                    letterSpacing:
+                      '.5px',
+                  }}
+                >
+                  Unpack
+                </div>
+
+                <div
+                  style={{
+                    maxHeight: 260,
+                    overflowY: 'auto',
+                  }}
+                >
+                  {menuDraft.itemIds.map(
+                    (childId) => {
+                      const child =
+                        state.items[
+                          childId
+                        ]
+
+                      if (!child) {
+                        return null
+                      }
+
+                      return (
+                        <button
+                          key={
+                            childId
+                          }
+                          type="button"
+                          onClick={() =>
+                            unpackDraftSuitcaseItemOnCanvas(
+                              card.id,
+                              item.id,
+                              childId,
+                            )
+                          }
+                          title={
+                            child.id
+                          }
+                        >
+                          Unpack{' '}
+                          {child.serial ||
+                            child.name ||
+                            child.label ||
+                            child.id}
+                        </button>
+                      )
+                    },
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    unpackAllDraftSuitcaseOnCanvas(
+                      card.id,
+                      item.id,
+                    )
+                  }
+                >
+                  Unpack All
+                </button>
+              </>
+            ) : null}
+
+            {menuDraft?.rootKind ===
+              'case' &&
+            menuDraft.itemIds.length >
+              0 ? (
+              <button
+                type="button"
+                onClick={() =>
+                  unpackDraftCaseOnCanvas(
+                    card.id,
+                    item.id,
+                  )
+                }
+              >
+                Unpack
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={() =>
@@ -761,9 +2501,112 @@ export default function StudioCanvas({
             >
               Remove from Canvas
             </button>
+
+            {menuFolders.length > 0 ? (
+              <>
+                <div />
+
+                <div
+                  className="canvas-folder-menu-entry"
+                  onMouseEnter={() =>
+                    setFolderMenuOpen(true)
+                  }
+                  onMouseLeave={() =>
+                    setFolderMenuOpen(false)
+                  }
+                >
+                  <button
+                    type="button"
+                    className="canvas-menu-submenu-trigger"
+                    onFocus={() =>
+                      setFolderMenuOpen(true)
+                    }
+                  >
+                    <span>
+                      Move to Folder
+                    </span>
+
+                    <span
+                      aria-hidden="true"
+                    >
+                      ›
+                    </span>
+                  </button>
+
+                  {folderMenuOpen ? (
+                    <div
+                      className="canvas-card-menu canvas-folder-submenu"
+                    >
+                      {menuFolders.map(
+                        (folder) => (
+                          <button
+                            key={folder.id}
+                            type="button"
+                            disabled={
+                              folder.id ===
+                              currentFolderId
+                            }
+                            onClick={() => {
+                              moveItemToStudioFolder(
+                                item.id,
+                                folder.id,
+                              )
+
+                              setFolderMenuOpen(
+                                false,
+                              )
+
+                              setMenu(null)
+                            }}
+                          >
+                            {folder.name}
+                          </button>
+                        ),
+                      )}
+
+                      {currentFolderId ? (
+                        <>
+                          <div />
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeItemFromStudioFolders(
+                                item.id,
+                              )
+
+                              setFolderMenuOpen(
+                                false,
+                              )
+
+                              setMenu(null)
+                            }}
+                          >
+                            Remove from Folder
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </div>
+
+
+        </>
         )
       })() : null}
+
+      {noteItemId ? (
+        <StudioNoteDialog
+          state={state}
+          itemId={noteItemId}
+          onClose={() =>
+            setNoteItemId(null)
+          }
+        />
+      ) : null}
 
       {info ? (
         <StudioItemInfo
@@ -777,3 +2620,7 @@ export default function StudioCanvas({
     </>
   )
 }
+
+
+
+

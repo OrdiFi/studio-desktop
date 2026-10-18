@@ -5,6 +5,85 @@ import {
   type StudioStateV1,
 } from './studioState'
 
+const STUDIO_HISTORY_LIMIT = 50
+
+const undoStack:
+  StudioStateV1[] = []
+
+const redoStack:
+  StudioStateV1[] = []
+
+function pushUndoState(
+  state: StudioStateV1,
+) {
+  undoStack.push(state)
+
+  if (
+    undoStack.length >
+    STUDIO_HISTORY_LIMIT
+  ) {
+    undoStack.shift()
+  }
+}
+
+export function canUndoStudioState() {
+  return undoStack.length > 0
+}
+
+export function canRedoStudioState() {
+  return redoStack.length > 0
+}
+
+export function undoStudioState():
+  StudioStateV1 {
+  const previous =
+    undoStack.pop()
+
+  const current =
+    readStudioState()
+
+  if (!previous) {
+    return current
+  }
+
+  redoStack.push(current)
+
+  if (
+    redoStack.length >
+    STUDIO_HISTORY_LIMIT
+  ) {
+    redoStack.shift()
+  }
+
+  writeStudioState(previous)
+
+  return previous
+}
+
+export function redoStudioState():
+  StudioStateV1 {
+  const next =
+    redoStack.pop()
+
+  const current =
+    readStudioState()
+
+  if (!next) {
+    return current
+  }
+
+  pushUndoState(current)
+
+  writeStudioState(next)
+
+  return next
+}
+
+export function clearStudioHistory() {
+  undoStack.length = 0
+  redoStack.length = 0
+}
+
 export function getStudioState():
   StudioStateV1 {
   return readStudioState()
@@ -111,6 +190,19 @@ export function updateStudioState(
 
   const next =
     updater(current)
+
+  if (next === current) {
+    return current
+  }
+
+  pushUndoState(current)
+
+  /*
+   * Any new edit after Undo creates a
+   * new branch, therefore Redo history
+   * is no longer valid.
+   */
+  redoStack.length = 0
 
   writeStudioState(next)
 

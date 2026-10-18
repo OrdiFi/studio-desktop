@@ -118,7 +118,29 @@ export type StudioDraftRootKind =
 export type StudioDraft = {
   rootId: string
   rootKind: StudioDraftRootKind
+
+  /*
+   * Flat child list used for traversal,
+   * parent detection and generic Draft logic.
+   */
   itemIds: string[]
+
+  /*
+   * Structural slot occupancy.
+   *
+   * Layout Drafts use this to preserve
+   * empty gaps between occupied slots.
+   *
+   * Example Grid4:
+   * [itemA, null, itemB, null]
+   *
+   * Optional for backwards compatibility
+   * with existing Studio snapshots.
+   */
+  slotItemIds?: Array<
+    string | null
+  >
+
   updatedAt: number
 }
 
@@ -149,6 +171,11 @@ export type StudioStateV1 = {
   drafts: Record<
     string,
     StudioDraft
+  >
+
+  notes: Record<
+    string,
+    string
   >
 
   updatedAt: number
@@ -183,6 +210,8 @@ export function createEmptyStudioState():
     },
 
     drafts: {},
+
+    notes: {},
 
     updatedAt: Date.now(),
   }
@@ -281,6 +310,14 @@ export function readStudioState():
           'object' &&
         !Array.isArray(parsed.drafts)
           ? parsed.drafts
+          : {},
+
+      notes:
+        parsed.notes &&
+        typeof parsed.notes ===
+          'object' &&
+        !Array.isArray(parsed.notes)
+          ? parsed.notes
           : {},
 
       updatedAt:
