@@ -54,7 +54,7 @@
                                     "requireSignedVersion":  true,
                                     "pubkey":  "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI1NkZGQjIzQzhENTZBMEQKUldRTmF0WElJL3R2SlozOUdIZWRQR2pBazRkcUxWSW0zZ3BsckVOaHVyZVJISmZoNXI5V1dYcysK",
                                     "endpoints":  [
-                                                      "https://ordifi.app/dev/releases/studio/latest.json"
+                                                      "https://ordifi.io/dev/releases/studio/latest.json"
                                                   ]
                                 }
                 }
