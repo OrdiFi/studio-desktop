@@ -1,3 +1,4 @@
+import { getVersion } from '@tauri-apps/api/app'
 import {
   useEffect,
   useRef,
@@ -98,6 +99,20 @@ function Check({
   )
 }
 
+function AppVersion() {
+  const [version, setVersion] = useState('...')
+
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch((error) => {
+        console.error('Unable to read app version:', error)
+        setVersion('Unknown')
+      })
+  }, [])
+
+  return <>{version}</>
+}
 export default function StudioMenuBar({
   explorerView,
   explorerVisible,
@@ -944,7 +959,7 @@ export default function StudioMenuBar({
                       fontSize: 12,
                     }}
                   >
-                    0.1.0
+                    <AppVersion />
                   </strong>
                 </div>
 
