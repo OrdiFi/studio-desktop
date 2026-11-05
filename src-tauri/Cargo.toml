@@ -1,6 +1,6 @@
 [package]
 name = "ordifi-studio"
-version = "1.1.0"
+version = "1.1.1"
 description = "OrdiFi Studio Desktop"
 authors = ["OrdiFi"]
 license = ""
