@@ -54,6 +54,8 @@ type Props = {
   onNewProject?: () => void
   onFileOpen?: () => void
   onImportFrom?: () => void
+  onImportFromWallet?: () => void
+  onImportMetadata?: () => void
   onSave?: () => void
   onSaveAs?: () => void
   onExportWallet?: () => void
@@ -113,6 +115,8 @@ export default function StudioMenuBar({
   onNewProject,
   onFileOpen,
   onImportFrom,
+  onImportFromWallet,
+  onImportMetadata,
   onSave,
   onSaveAs,
   onExportWallet,
@@ -383,6 +387,26 @@ export default function StudioMenuBar({
               }}
             >
               <span>Import From...</span>
+            </button>
+            <button
+              type="button"
+              className="studio-menu-item"
+              onClick={() => {
+                setOpen(null)
+                onImportFromWallet?.()
+              }}
+            >
+              <span>Import from Wallet...</span>
+            </button>
+            <button
+              type="button"
+              className="studio-menu-item"
+              onClick={() => {
+                setOpen(null)
+                onImportMetadata?.()
+              }}
+            >
+              <span>Import Metadata (JSON)...</span>
             </button>
           </div>
 

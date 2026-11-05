@@ -2729,3 +2729,58 @@ html[data-explorer-view='classic']
 .explorer-wallet-list {
   padding-bottom: 8px;
 }
+
+/* Wallet-import card polish: Explorer and Canvas share the same visual rules.
+   No changes to card markup, thumbnails, data, or wallet source labels. */
+
+/* Nearest-neighbor enlargement of small Ordinal artwork (e.g. 24x24 WebP).
+   The image itself is enlarged by the browser, without a smoothing pass. */
+.studio-item-image .studio-thumbnail,
+.canvas-card-image .studio-thumbnail {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* Keep the original image dimensions/aspect ratio; no forced crop. */
+.studio-item-image .studio-thumbnail,
+.canvas-card-image .studio-thumbnail {
+  object-fit: contain;
+}
+
+/* Place chain icon *behind* readable item/collection labels,
+   rather than reserving width and truncating names earlier. */
+html:not([data-explorer-view='classic']) .studio-item-meta,
+.canvas-card-meta {
+  position: relative;
+  isolation: isolate;
+}
+
+html:not([data-explorer-view='classic']) .studio-item-meta {
+  min-height: 35px;
+  padding-right: 6px;
+}
+
+html:not([data-explorer-view='classic']) .studio-item-meta::after,
+.canvas-card-meta::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: url('./assets/wallet-import/bitcoin-card.png') center / contain no-repeat;
+  opacity: 0.24;
+  z-index: 0;
+  pointer-events: none;
+}
+
+html:not([data-explorer-view='classic']) .studio-item-meta > strong,
+html:not([data-explorer-view='classic']) .studio-item-meta > span,
+.canvas-card-meta > strong,
+.canvas-card-meta > span {
+  position: relative;
+  z-index: 1;
+}
+
+/* The label sits above the icon; natural ellipsis only at the actual card edge. */

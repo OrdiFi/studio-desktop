@@ -1,0 +1,20 @@
+.wallet-import-backdrop{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:24px}
+.wallet-import-dialog{background:#181e29;color:#f3f4f6;border:1px solid #4b5563;border-radius:14px;width:min(640px,100%);max-height:90vh;overflow:auto;padding:24px;box-shadow:0 20px 65px #0008;font-size:14px}
+.wallet-import-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}.wallet-import-heading h2{margin:0;font-size:21px}.wallet-import-heading button{font-size:24px}
+.wallet-import-dialog h3{font-size:14px;margin:22px 0 10px}.wallet-import-dialog button{background:#f7931a;color:#171717;border:0;border-radius:7px;padding:10px 14px;cursor:pointer;font-weight:600}
+.wallet-import-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.wallet-import-options>div{border:1px solid #4b5563;padding:16px 10px;display:flex;flex-direction:column;gap:7px;border-radius:8px;text-align:center}
+.wallet-import-options small{font-size:11px}.wallet-import-options .is-selected{border-color:#f7931a}.wallet-import-options .is-disabled{opacity:.42}
+.wallet-import-provider,.wallet-import-preview{border:1px solid #4b5563;border-radius:8px;padding:14px}.wallet-import-provider{display:flex;justify-content:space-between;gap:10px}.wallet-import-provider span{color:#a1a1aa}
+.wallet-import-hint{line-height:1.6;color:#cbd5e1}.wallet-import-dialog code{overflow-wrap:anywhere}.wallet-import-address{overflow-wrap:anywhere;font-family:monospace;color:#a5b4fc}
+.wallet-import-preview{margin-top:16px}.wallet-import-preview label{display:block;margin:12px 0}.wallet-import-preview input,.wallet-import-preview select{display:block;width:100%;margin-top:5px;padding:9px;background:#111827;border:1px solid #64748b;color:white;border-radius:6px}
+.wallet-import-error{color:#fca5a5}.wallet-import-success{color:#86efac}
+
+/* Blockchain / wallet branding: logos are local app assets, no network needed. */
+.wallet-import-chain-name{display:flex;align-items:center;justify-content:center;gap:9px;min-height:29px}
+.wallet-import-chain-name img{width:26px;height:26px;flex:none;object-fit:contain}
+.wallet-import-chain-name b{font-size:13px;white-space:nowrap}
+.wallet-import-provider{align-items:center;flex-wrap:wrap}
+.wallet-import-wallet-name{display:flex;align-items:center;gap:10px;min-width:0}
+.wallet-import-wallet-name img{width:31px;height:31px;object-fit:contain;flex:none;border-radius:7px}
+.wallet-import-provider-description{font-size:12px;text-align:right}
+@media(max-width:540px){.wallet-import-options{gap:6px}.wallet-import-options>div{padding:12px 4px}.wallet-import-chain-name{flex-direction:column;gap:5px}.wallet-import-chain-name b{font-size:12px}.wallet-import-provider-description{text-align:left}}

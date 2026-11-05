@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  useRef,
 } from 'react'
 
 import './App.css'
@@ -15,6 +16,8 @@ import StudioMenuBar, {
   type WalletLabelMode,
 } from './studio/StudioMenuBar'
 import StudioSyncImportButton from './studio/StudioSyncImportButton'
+import WalletImportDialog from './studio/WalletImportDialog'
+import { importItemMetadataJson } from './studio/importItemMetadataJson'
 import StudioCanvas, {
   addItemToActiveCanvas,
 } from './studio/StudioCanvas'
@@ -120,6 +123,8 @@ function resolveTheme(
 
 function App() {
   const studioState = useStudioState()
+  const [walletImportOpen, setWalletImportOpen] = useState(false)
+  const metadataInputRef = useRef<HTMLInputElement | null>(null)
 
   const [showStartup, setShowStartup] =
     useState(true)
@@ -394,6 +399,30 @@ function App() {
         </div>
       ) : null}
 
+      {walletImportOpen && <WalletImportDialog onClose={() => setWalletImportOpen(false)} />}
+      <input
+        ref={metadataInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: 'none' }}
+        aria-label="Import item metadata JSON"
+        onChange={event => {
+          const input = event.currentTarget
+          const file = input.files?.[0]
+          if (!file) return
+          void (async () => {
+            try {
+              if (file.size > 2 * 1024 * 1024) throw new Error('Metadata JSON exceeds 2 MB')
+              const result = importItemMetadataJson(await file.text())
+              window.alert(`Metadata import: ${result.updated} updated, ${result.unchanged} unchanged, ${result.missing} IDs not found in Studio.`)
+            } catch (error) {
+              window.alert(error instanceof Error ? error.message : String(error))
+            } finally {
+              input.value = ''
+            }
+          })()
+        }}
+      />
       <main className="studio-shell">
       <header className="studio-toolbar">
         <StudioMenuBar
@@ -470,6 +499,8 @@ function App() {
               })
           }}
 
+          onImportFromWallet={() => setWalletImportOpen(true)}
+          onImportMetadata={() => metadataInputRef.current?.click()}
           onFileOpen={() => {
             void openStudioProject()
               .catch((error) => {
